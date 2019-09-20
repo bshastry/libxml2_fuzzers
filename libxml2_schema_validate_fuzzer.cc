@@ -92,21 +92,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 	xmlDocPtr doc = xmlReadMemory(xmlString.data(), xmlString.size(),
 	                              "noname.xml", NULL, 0);
 
+	assert(doc != NULL);
 	// Validate doc
-	if (doc != NULL)
+	if (schema != NULL)
 	{
-		if (schema != NULL)
-		{
-			xmlSchemaValidCtxtPtr validateCtxt;
-			validateCtxt = xmlSchemaNewValidCtxt(schema);
-			xmlSchemaSetValidErrors(validateCtxt,
-			                        xmlGenericError, xmlGenericError, NULL);
-			xmlSchemaValidateDoc(validateCtxt, doc);
-			xmlSchemaFreeValidCtxt(validateCtxt);
-			xmlSchemaFree(schema);
-		}
-		xmlFreeDoc(doc);
+		xmlSchemaValidCtxtPtr validateCtxt;
+		validateCtxt = xmlSchemaNewValidCtxt(schema);
+		xmlSchemaSetValidErrors(validateCtxt,
+		                        xmlGenericError, xmlGenericError, NULL);
+		xmlSchemaValidateDoc(validateCtxt, doc);
+		xmlSchemaFreeValidCtxt(validateCtxt);
+		xmlSchemaFree(schema);
 	}
+	xmlFreeDoc(doc);
 
 	xmlSchemaFreeParserCtxt(ctxt);
 	// Common clean up

@@ -29,6 +29,32 @@
 #include <libxml/parser.h>
 #include <libxml/relaxng.h>
 
+/// XML document to validate against Relax NG schema
+static std::string xmlString = R"(<?xml version="1.0" encoding="UTF-8"?>
+<shiporder orderid="889923"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="shiporder.xsd">
+<orderperson>John Smith</orderperson>
+<shipto>
+<name>Ola Nordmann</name>
+<address>Langgt 23</address>
+<city>4000 Stavanger</city>
+<country>Norway</country>
+</shipto>
+<item>
+<title>Empire Burlesque</title>
+<note>Special Edition</note>
+<quantity>1</quantity>
+<price>10.90</price>
+</item>
+<item>
+<title>Hide your heart</title>
+<quantity>1</quantity>
+<price>9.90</price>
+</item>
+</shiporder>
+)";
+
 void ignore (void* ctx, const char* msg, ...) {
 	// Error handler to avoid spam of error messages from libxml parser.
 }
@@ -42,7 +68,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 
 	std::string schemaString(data, data + size - 1);
 
-	xmlRelaxNGParserCtxtPtr ctxt = xmlRelaxNGNewMemParserCtxt(schemaString.c_str(), schemaString.size());
+	xmlRelaxNGParserCtxtPtr ctxt = xmlRelaxNGNewMemParserCtxt(schemaString.data(), schemaString.size());
 
 	xmlRelaxNGSetParserErrors(
 		ctxt,
@@ -50,10 +76,28 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 		xmlGenericError,
 		NULL
 	);
+
+	// Parse schema
 	xmlRelaxNGPtr schema = xmlRelaxNGParse(ctxt);
-	xmlRelaxNGFreeParserCtxt(ctxt);
+
+	// Parse static document
+	xmlDocPtr doc = xmlReadMemory(xmlString.data(), xmlString.size(),
+	                              "noname.xml", NULL, 0);
+
+	assert(doc != NULL);
+	// Validate doc
 	if (schema != NULL)
+	{
+		xmlRelaxNGValidCtxtPtr validateCtxt;
+		validateCtxt = xmlRelaxNGNewValidCtxt(schema);
+		xmlRelaxNGSetValidErrors(validateCtxt,
+		                        xmlGenericError, xmlGenericError, NULL);
+		xmlRelaxNGValidateDoc(validateCtxt, doc);
+		xmlRelaxNGFreeValidCtxt(validateCtxt);
 		xmlRelaxNGFree(schema);
+	}
+	xmlFreeDoc(doc);
+	xmlRelaxNGFreeParserCtxt(ctxt);
 	xmlRelaxNGCleanupTypes();
 	xmlCleanupParser();
 	xmlMemoryDump();
